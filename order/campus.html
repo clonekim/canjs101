@@ -1,0 +1,282 @@
+<html>
+    <head>
+        <title></title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link href="http://www.w3schools.com/lib/w3.css" rel="stylesheet">
+
+        <script src="/bower_components/jquery/dist/jquery.min.js"></script>
+        <script src="/bower_components/CanJS/can.jquery.min.js"></script>
+        <script src="/bower_components/CanJS/can.map.validations.js"></script>
+        <style>
+         .check {
+             width: 24px;
+             height: 24px;
+         }
+        </style>
+    </head>
+    <body>
+
+        <script id="step-tpl" type="text/mustache">
+            <div class="w3-row">
+                <div class="w3-col m4 s4 w3-center">
+                    <div class="w3-panel"><span class="w3-badge w3-xlarge w3-padding {{#is step 1 }}w3-red{{/is}}">1</span></div>
+                    <div class="w3-panel">서비스선택</div>
+                </div>
+                <div class="w3-col m4 s4 w3-center">
+                    <div class="w3-panel"><span class="w3-badge w3-xlarge w3-padding {{#is step 2 }}w3-red{{/is}}">2</span></div>
+                    <div class="w3-panel">결제</div>
+                </div>
+                <div class="w3-col m4 s4 w3-center">
+                    <div class="w3-panel"><span class="w3-badge w3-xlarge w3-padding {{#is step 3 }}w3-red{{/is}}">3</span></div>
+                    <div class="w3-panel">완료</div>
+                </div>
+            </div>
+        </script>
+
+        <div class="w3-content">
+            <div class="w3-row" id="app-step"></div>
+            <div class="w3-row" id="app-order-form">
+                <div class="w3-panel w3-right-align">
+                    <button class="w3-btn" id="cart">장바구니 담기</button>
+                    <button class="w3-btn" id="next2">다음 단계</button>
+                </div>
+            </div>
+        </div>
+
+
+        <script>
+         $(function() {
+
+             can.mustache.registerHelper('hasError', function(key, props, opts) {
+                 console.log('**has error**');
+                 var model = can.isFunction(key)? key(): key;
+                 var obj = (typeof props == 'object')
+                 var err = obj? model.errors(): model.errors(props);
+                 console.log('validation errors -> ', err);
+                 var contxt = (typeof props == 'object') ? props: opts;
+
+                 if((typeof props) == 'string'){
+                     if(err && err[props]) {
+                         model.attr({error: err});
+                         return contxt.fn(this);
+                     }
+                 }else {
+                     if(err){
+                         model.attr({error: err});
+                         return contxt.fn(this);
+                     }
+                     else {
+                         model.attr({error: null});
+                         return contxt.inverse(this);
+                     }
+                 }
+             });
+
+
+             can.mustache.registerHelper('is', function(key, val, opts) {
+                 key = can.isFunction(key)? key(): key;
+                 if(key) {
+                     if(key == val) {
+                         return opts.fn(this);
+                     }else {
+                         return opts.inverse(this);
+                     }
+                 }
+             });
+
+
+             var nav = new can.Model({step: 1, payment: 'card', bank_receipt_level: 0});
+             var CBModel = can.Map.extend({
+                 hasError: function() {
+                     return !can.isEmptyObject(this.errors());
+                 }
+             });
+
+             var Customer = CBModel.extend({
+                 init: function() {
+                     this.validatePresenceOf('name', {message: '이름을 입력하세요'});
+                     this.validatePresenceOf('tel',  {message: '연락처를 입력하세요'});
+                     this.validatePresenceOf('email', {message: '이메일을 입력하세요'});
+                 }
+             },{});
+
+
+
+
+             var Card = CBModel.extend({
+                 init: function() {
+                     this.validate('card_num', function(card_num) {
+                         console.log('1');
+                         if(card_num.length != 4)
+                             return '카드번호를 입력해주세요';
+
+                         for(var i=0; i< 4; i++) {
+                             if(!card_num[i])
+                                 return '유효하지 않는 카드번호입니다';
+                         }
+                     });
+
+                     this.validate('expiry', function(expiry) {
+                         console.log('2');
+                         if(expiry.length != 2)
+                             return '카드 유효기간을 입력해주세요';
+
+                         for(var i=0; i< 2; i++) {
+                             if(!expiry[i]) {
+                                 return '유효하지 않는 카드번호입니다';
+                             }
+
+                             if(i == 0 && expiry[i].length != 2 ) {
+                                 return '카드 유효기간의 월을 입력하세요';
+                             }
+
+                             if (i == 1 && expiry[i].length != 4) {
+                                 return '카드 유효기간의 년을 입력하세요';
+                             }
+                         }
+                     });
+
+
+                     this.validatePresenceOf('birth', {message: '생일을 입력하세요'});
+                     this.validatePresenceOf('passwd', {message: '패스워드 2자리를 입력하세요'});
+                 }
+             },{});
+
+
+             var Bank = CBModel.extend({
+                 init: function() {
+                     this.validatePresenceOf('bank_name', {message: '해당 은행의 명칭이 필요합니다'});
+                     this.validatePresenceOf('bank_owner', {message: '해당 은행의 소유자가 필요합니다'});
+                     this.validatePresenceOf('bank_account', {message: '해당 은행의 계좌번호가 필요합니다'});
+                     this.validatePresenceOf('amount', {message: '최종 입금할 금액이 설정되지 않았습니다'});
+                     this.validatePresenceOf('buyer_name', {message: '입금자의 성함이 없습니다'});
+                 }
+             },{});
+
+             var ReqReceipt = CBModel.extend({
+                 init: function() {
+
+                 }
+             });
+
+
+             var Stock = CBModel.extend({
+                 init: function() {
+                     this.validatePresenceOf('qty', {message: '수량을 입력하세요'});
+                     this.validateRangeOf('qty', 0, 100, {message: '입력허용값은 0~100 입니다'});
+                 }
+             },{
+                 subTotal: function() {
+                     var qty = this.attr('qty');
+                     var price = this.attr('price');
+
+                     if(isNaN(qty))
+                         return 0;
+
+                     qty = parseInt(qty);
+
+                     if(qty > 100)
+                         return 100 * price;
+                     else if(qty < 0)
+                         return 0 * price;
+                     else
+                         return qty * price;
+                 }
+             });
+
+             Stock.List = can.List.extend({
+                 Map: Stock
+             },{
+                 hasError: function() {
+                     var a = false;
+                     this.forEach(function(i) {
+                         if(i.hasError())
+                             a = true;
+                     });
+                     return a;
+                 },
+                 total: function() {
+                     var sum = 0;
+                     this.forEach(function(i) {
+                         sum += i.subTotal();
+                     });
+                     return sum;
+                 }
+             });
+
+             var stocklist = new Stock.List([
+                 {category:'ohobox', name: '전용박스', qty:1, price: 12000},
+                 {category:'box',    name: '개인박스', qty:1, price: 11000},
+                 {category:'other',  name: '비규격', qty:1, price: 11000}
+             ]);
+             var schools = new can.List([
+                 {id: 'seoul', name: '서울대', logo: 'http://placehold.it/150x150', schedule:{pick: '1111', take: '1222'}},
+                 {id: 'kokuk',name: '건국대', logo: 'http://placehold.it/150x150', schedule:{pick: '1331', take: '1222'}}
+             ]);
+
+
+             var OrderView = can.Control.extend({
+                 init: function(el, options) {
+                     el.html(can.view('campus-step1', options));
+                 },
+                 'button#next1 click' : function() {
+                     this.options.nav.attr('step', 1);
+                 },
+                 'button#next2 click' : function() {
+                     //if(!customer.hasError() && !stocklist.hasError()) {
+                     this.options.nav.attr('step', 2);
+                     //}
+                 },
+                 'button#btn-card click': function() {
+                     this.options.nav.attr('payment', 'card');
+                 },
+                 'button#btn-bank click': function() {
+                     this.options.nav.attr('payment', 'bank');
+                 },
+                 'button#btn-site click': function() {
+                     this.options.nav.attr('payment', 'site');
+                 },
+                 'button#checkout click': function() {
+
+                 },
+                 'select change': function(e) {
+                     var id = e.val();
+                     if(id) {
+                         var model = null;
+                         schools.forEach(function(i) {
+                             if(i.id == id) {
+                                 model = i;
+                             }
+                         });
+                         this.options.school(model);
+                     }
+
+                 }
+
+             });
+
+
+
+             $('#app-step').html(can.view('step-tpl', nav));
+             new OrderView('#app-order-form', {stocks:stocklist,
+                                               nav: nav,
+                                               customer: new Customer(),
+                                               schools: schools,
+                                               school: can.compute('', function(a) { return a;}),
+                                               card: new Card({card_num: ['','','',''], expiry:['','']}),
+                                               bank: new Bank(),
+                                               isValidCard: function(m, prop, idx, e) {
+                                                   if(m) {
+                                                       var coll = m.attr(prop);
+                                                       coll[parseInt(idx)] = e.val();
+                                                       m.attr(prop, coll);
+                                                       m.attr('error', m.errors());
+                                                   }
+                                               }
+             });
+
+         });
+
+        </script>
+    </body>
+</html>

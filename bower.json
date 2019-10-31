@@ -1,0 +1,22 @@
+{
+  "name": "can101",
+  "authors": [
+    "daehee.kim <daehee.kim@oho.co.kr>"
+  ],
+  "description": "",
+  "main": "",
+  "license": "MIT",
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jquery": "1.12",
+    "CanJS": "canjs#^2.3.27",
+    "jquery-ui": "^1.12.1"
+  }
+}
